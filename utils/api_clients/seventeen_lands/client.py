@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 import json
 from typing import Tuple
 
+from box import Box
 import pandas as pd
 from requests_cache import CachedSession
 
@@ -44,9 +45,9 @@ class SeventeenLandsClient:
         """
         # Prepare and perform API request
         url = 'https://www.17lands.com/data/colors'
-        result = self.session.get(url=url).json()
+        response = self.session.get(url=url).json()
 
-        colors = pd.Series(result)
+        colors = pd.Series(response)
         return colors
 
 
@@ -61,9 +62,9 @@ class SeventeenLandsClient:
         """
         # Prepare and perform API request
         url = 'https://www.17lands.com/data/expansions'
-        result = self.session.get(url=url).json()
+        response = self.session.get(url=url).json()
 
-        expansions = pd.Series(result)
+        expansions = pd.Series(response)
         return expansions
 
 
@@ -78,9 +79,9 @@ class SeventeenLandsClient:
         """
         # Prepare and perform API request
         url = 'https://www.17lands.com/data/formats'
-        result = self.session.get(url=url).json()
+        response = self.session.get(url=url).json()
 
-        event_types = pd.Series(result)
+        event_types = pd.Series(response)
         return event_types
 
 
@@ -159,10 +160,10 @@ class SeventeenLandsClient:
             'combine_splash': combine_splash,
             'user_group': user_group
         }
-        result = self.session.get(url=url, params=params).json()
+        response = self.session.get(url=url, params=params).json()
 
         # Apply a more intuitive columns ordering
-        unsorted_df = pd.DataFrame(result)
+        unsorted_df = pd.DataFrame(response)
         columns_order = [
             'is_summary',
             'color_name',
@@ -287,10 +288,10 @@ class SeventeenLandsClient:
             'user_group': user_group,
             'colors': deck_colors
         }
-        result = self.session.get(url=url, params=params).json()
+        response = self.session.get(url=url, params=params).json()
 
         # Apply a more intuitive columns ordering, and remove URLs and sideboard metrics
-        unsorted_df = pd.DataFrame(result)
+        unsorted_df = pd.DataFrame(response)
         sorted_cols = [
             'name',
             'color',
@@ -410,24 +411,24 @@ class SeventeenLandsClient:
             'rarity': rarity,
             'color': color
         }
-        result = self.session.get(url=url, params=params).json()
+        response = self.session.get(url=url, params=params).json()
 
         # Tidy up data into a dataframe of one row per date-card combination
-        digested_result_accum = []
-        for d_i, day in enumerate(result['dates']):
-            for c_i, card in enumerate(result['cards']):
-                digested_result_accum.append({
+        digested_response_accum = []
+        for d_i, day in enumerate(response['dates']):
+            for c_i, card in enumerate(response['cards']):
+                digested_response_accum.append({
                     'date': datetime.strptime(day, '%Y-%m-%d'),
                     'name': card,
-                    'pick_n': result['data'][d_i][c_i]['pick_n'],
-                    'pick_avg': result['data'][d_i][c_i]['pick_avg'],
-                    'seen_n': result['data'][d_i][c_i]['seen_n'],
-                    'seen_avg': result['data'][d_i][c_i]['seen_avg']
+                    'pick_n': response['data'][d_i][c_i]['pick_n'],
+                    'pick_avg': response['data'][d_i][c_i]['pick_avg'],
+                    'seen_n': response['data'][d_i][c_i]['seen_n'],
+                    'seen_avg': response['data'][d_i][c_i]['seen_avg']
                 })
-        digested_result_df = pd.DataFrame(digested_result_accum).drop_duplicates(ignore_index=True)
+        digested_response_df = pd.DataFrame(digested_response_accum).drop_duplicates(ignore_index=True)
 
         # Rename the metrics for more standard ones
-        card_evaluations = digested_result_df.rename(columns={
+        card_evaluations = digested_response_df.rename(columns={
             'pick_n': 'pick_count',
             'pick_avg': 'avg_taken_at',
             'seen_n': 'seen_count',
@@ -459,9 +460,9 @@ class SeventeenLandsClient:
         """
         # Prepare and perform API request
         url = 'https://www.17lands.com/data/play_draw'
-        result = self.session.get(url=url).json()
+        response = self.session.get(url=url).json()
 
-        play_draw_stats = pd.DataFrame(result)
+        play_draw_stats = pd.DataFrame(response)
         return play_draw_stats
 
 
@@ -523,10 +524,10 @@ class SeventeenLandsClient:
             'expansion': expansion,
             'format': event_type
         }
-        result = self.session.get(url=url, params=params).json()
+        response = self.session.get(url=url, params=params).json()
 
         # Apply a more intuitive columns ordering
-        unsorted_df = pd.DataFrame(result)
+        unsorted_df = pd.DataFrame(response)
         sorted_cols = [
             'time',
             'colors',
@@ -607,12 +608,12 @@ class SeventeenLandsClient:
         params = {
             'draft_id': draft_id
         }
-        result = self.session.get(url=url, params=params)
+        response = self.session.get(url=url, params=params)
 
         # Process built-in JSON
-        response_obj = json.loads(result.text[6:-2])
+        response_obj = json.loads(response.text[6:-2])
 
-        # Only return results if payload is complete
+        # Only return content if payload is complete
         if response_obj['type'] != 'complete':
             raise ValueError(f"Response is not complete. Response type: '{response_obj['type']}'")
 
@@ -717,11 +718,11 @@ class SeventeenLandsClient:
             'draft_id': draft_id,
             'deck_index': deck_index
         }
-        result = self.session.get(url=url, params=params).json()
+        response = self.session.get(url=url, params=params).json()
 
         # Compile a deck dataframe
         deck_accum = []
-        for group in result['groups']:
+        for group in response['groups']:
             for card in group['cards']:
                 deck_accum.append({
                     'group': group['name'],
@@ -730,8 +731,8 @@ class SeventeenLandsClient:
         deck = pd.DataFrame(deck_accum)
 
         # Compile deck metadata
-        event_info = result['event_info']
-        deck_metadata = {
+        event_info = response['event_info']
+        deck_metadata = Box({
             'expansion': event_info['expansion'],
             'event_type': event_info['format'],
             'wins': event_info['wins'],
@@ -740,7 +741,7 @@ class SeventeenLandsClient:
             'deck_links': event_info['deck_links'],
             'details_link': event_info['details_link'],
             'draft_link': event_info['draft_link'],
-            'sealed_deck_tech_link': result['builder_link']
-        }
+            'sealed_deck_tech_link': response['builder_link']
+        })
 
         return deck, deck_metadata
